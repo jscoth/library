@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.EventQueue;
 
 import javax.swing.JFrame;
-import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -12,31 +11,21 @@ import javax.swing.table.TableColumnModel;
 
 import net.proteanit.sql.DbUtils;
 
-import javax.swing.JSplitPane;
-import javax.swing.JTextPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SpringLayout;
-import javax.swing.JTextArea;
-import javax.swing.DefaultListModel;
 import javax.swing.JButton;
-import java.awt.CardLayout;
 import java.awt.Color;
 
 import javax.swing.JTextField;
-import javax.swing.JSeparator;
 import javax.swing.JScrollPane;
-import java.awt.FlowLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import javax.swing.JTable;
-import javax.swing.JCheckBox;
-import javax.swing.JPasswordField;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 import javax.swing.JRadioButton;
 import javax.swing.ButtonGroup;
-import javax.swing.JFormattedTextField;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -44,8 +33,6 @@ import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.awt.Rectangle;
 
 @SuppressWarnings("serial")
 public class LibWindow extends JFrame {
@@ -70,6 +57,8 @@ public class LibWindow extends JFrame {
 	private JPanel panel_1;
 	private SpringLayout springLayout;
 	private JPanel panel_2;
+	private JTextField txtYourBooks;
+	private SpringLayout springLayout_1;
 
 	/**
 	 * Launch the application.
@@ -100,12 +89,14 @@ public class LibWindow extends JFrame {
 		springLayout = new SpringLayout();
 		contentPane.setLayout(springLayout);
 		
+		// panel declaration
 		JPanel sortPanel = new JPanel();
 		springLayout.putConstraint(SpringLayout.NORTH, sortPanel, 5, SpringLayout.NORTH, contentPane);
 		springLayout.putConstraint(SpringLayout.WEST, sortPanel, 5, SpringLayout.WEST, contentPane);
 		sortPanel.setPreferredSize(new Dimension(150, 100));
 		contentPane.add(sortPanel, BorderLayout.WEST);
 		
+		// Show Books label
 		JLabel btnShowBooks = new JLabel("Show Books");
 		btnShowBooks.setBounds(12, 5, 150, 30);
 		btnShowBooks.setPreferredSize(new Dimension(150, 30));
@@ -143,7 +134,7 @@ public class LibWindow extends JFrame {
 		radioAuthor = new JRadioButton("Author");
 		radioAuthor.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				sortButton("Author");
+				refreshDBTable();
 			}
 		});
 		sortButtonGroup.add(radioAuthor);
@@ -155,7 +146,7 @@ public class LibWindow extends JFrame {
 		radioTitle.setSelected(true);
 		radioTitle.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				sortButton("Title");
+				refreshDBTable();
 			}
 		});
 		sortButtonGroup.add(radioTitle);
@@ -166,7 +157,7 @@ public class LibWindow extends JFrame {
 		radioGenre = new JRadioButton("Genre");
 		radioGenre.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				sortButton("Genre");
+				refreshDBTable();
 			}
 		});
 		sortButtonGroup.add(radioGenre);
@@ -183,8 +174,8 @@ public class LibWindow extends JFrame {
 		contentPane.add(userControls, BorderLayout.SOUTH);
 		userControls.setLayout(null);
 		
-		lblEnterUserId = new JLabel("Enter User ID: ");
-		lblEnterUserId.setBounds(12, 29, 85, 16);
+		lblEnterUserId = new JLabel("Enter Card Number:");
+		lblEnterUserId.setBounds(12, 29, 110, 16);
 		userControls.add(lblEnterUserId);
 		
 		// -j
@@ -202,7 +193,7 @@ public class LibWindow extends JFrame {
 					
 			}
 		});
-		idField.setBounds(97, 25, 158, 25);
+		idField.setBounds(132, 25, 158, 25);
 		userControls.add(idField);
 		
 		submitButton = new JButton("Log In");
@@ -223,39 +214,12 @@ public class LibWindow extends JFrame {
 
 		});
 		
-		/*
-		JButton btnCart = new JButton("Go To Cart");
-		btnCart.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				//CartWindow.LaunchCartScreen();
-				// for testing only, since i had it already made:
-				System.out.println(cart.toString());
-				//Bookshelf.Launch(cart.toArray(new String[cart.size()]));
-				
-			}
-		});
-
-		btnCart.setBounds(828, 25, 170, 58);
-		panel_2.add(btnCart);
-		*/
-		
-		JButton btnCheckOut = new JButton("Check Out");
-		btnCheckOut.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseClicked(MouseEvent k) {
-				checkOutSelected(k);
-			}
-
-		}); 
-		btnCheckOut.setBounds(626, 26, 170, 58);
-		userControls.add(btnCheckOut);
-		
 		JScrollPane scrollPane = new JScrollPane();
+		springLayout.putConstraint(SpringLayout.SOUTH, scrollPane, -105, SpringLayout.SOUTH, userControls);
 		springLayout.putConstraint(SpringLayout.EAST, scrollPane, 500, SpringLayout.EAST, sortPanel);
 		scrollPane.setBackground(Color.RED);
 		springLayout.putConstraint(SpringLayout.NORTH, scrollPane, 5, SpringLayout.NORTH, contentPane);
 		springLayout.putConstraint(SpringLayout.WEST, scrollPane, 5, SpringLayout.EAST, sortPanel);
-		springLayout.putConstraint(SpringLayout.SOUTH, scrollPane, -5, SpringLayout.SOUTH, userControls);
 		contentPane.add(scrollPane, BorderLayout.CENTER);
 		
 		table = new JTable();
@@ -275,17 +239,25 @@ public class LibWindow extends JFrame {
 		
 		try {
 			bookshelfPanel = new Bookshelf(cart.toArray(new String[cart.size()]));
+			springLayout_1 = (SpringLayout) bookshelfPanel.getLayout();
+			springLayout.putConstraint(SpringLayout.WEST, bookshelfPanel, 0, SpringLayout.EAST, scrollPane);
+			springLayout.putConstraint(SpringLayout.EAST, bookshelfPanel, -5, SpringLayout.EAST, contentPane);
 		} catch (Exception e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 		springLayout.putConstraint(SpringLayout.NORTH, bookshelfPanel, 5, SpringLayout.NORTH, contentPane);
-		springLayout.putConstraint(SpringLayout.WEST, bookshelfPanel, 5, SpringLayout.EAST, scrollPane);
 		springLayout.putConstraint(SpringLayout.SOUTH, bookshelfPanel, -5, SpringLayout.NORTH, userControls);
-		springLayout.putConstraint(SpringLayout.EAST, bookshelfPanel, -5, SpringLayout.EAST, contentPane);
 		springLayout.putConstraint(SpringLayout.EAST, userControls, -5, SpringLayout.EAST, bookshelfPanel);
 		bookshelfPanel.setMinimumSize(new Dimension(150, 10));
 		contentPane.add(bookshelfPanel, BorderLayout.EAST);
+		
+		txtYourBooks = new JTextField();
+		txtYourBooks.setText("Your Books:");
+		springLayout_1.putConstraint(SpringLayout.NORTH, txtYourBooks, 10, SpringLayout.NORTH, bookshelfPanel);
+		springLayout_1.putConstraint(SpringLayout.EAST, txtYourBooks, -10, SpringLayout.EAST, bookshelfPanel);
+		bookshelfPanel.add(txtYourBooks);
+		txtYourBooks.setColumns(10);
 	
 
 	}
