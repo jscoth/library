@@ -192,7 +192,7 @@ public class LibWindow extends JFrame {
 		idField.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyPressed(KeyEvent k) {
-				if (k.getKeyCode() == 10) // enter
+				if (!idField.getText().equals("") && k.getKeyCode() == 10) // enter
 				{
 					int userID = Integer.valueOf(idField.getText());
 					if (userID != 0)
@@ -211,7 +211,7 @@ public class LibWindow extends JFrame {
 		submitButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				//extracted this to its own method -j
-				if (!idField.getText().equals("") && idField.getText() != null)
+				if (loggedInAs == 0)
 					submitButtonPressed(sortPanel, Integer.valueOf(idField.getText()));
 				
 			}
@@ -273,14 +273,18 @@ public class LibWindow extends JFrame {
 		// added this here so it populates on startup -j
 		refreshDBTable();
 		
-		bookshelfPanel = new Bookshelf(cart.toArray(new String[cart.size()]));
+		try {
+			bookshelfPanel = new Bookshelf(cart.toArray(new String[cart.size()]));
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		springLayout.putConstraint(SpringLayout.NORTH, bookshelfPanel, 5, SpringLayout.NORTH, contentPane);
 		springLayout.putConstraint(SpringLayout.WEST, bookshelfPanel, 5, SpringLayout.EAST, scrollPane);
 		springLayout.putConstraint(SpringLayout.SOUTH, bookshelfPanel, -5, SpringLayout.NORTH, userControls);
 		springLayout.putConstraint(SpringLayout.EAST, bookshelfPanel, -5, SpringLayout.EAST, contentPane);
 		springLayout.putConstraint(SpringLayout.EAST, userControls, -5, SpringLayout.EAST, bookshelfPanel);
 		bookshelfPanel.setMinimumSize(new Dimension(150, 10));
-		//FlowLayout flowLayout_1 = (FlowLayout) bookshelfPanel.getLayout();
 		contentPane.add(bookshelfPanel, BorderLayout.EAST);
 	
 
@@ -305,11 +309,18 @@ public class LibWindow extends JFrame {
 		{
 			//cart.add(title);
 			System.out.println("title from table: " + title);
-			bookshelfPanel.add(title);
-			DBManager.updateData("Books", "Title = '" + title + "'", "PatronID = " + loggedInAs);
-			bookshelfPanel.drawBooks();
-			refreshDBTable();
-			bookshelfPanel.repaint();
+			try {
+				bookshelfPanel.add(title);
+				DBManager.updateData("Books", "Title = '" + title + "'", "PatronID = " + loggedInAs);
+				bookshelfPanel.drawBooks();
+				refreshDBTable();
+				bookshelfPanel.repaint();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(null, "Checkout Limit Reached!");
+			}
+
 		}	
 		else
 		{
@@ -356,12 +367,20 @@ public class LibWindow extends JFrame {
 	 * this method triggers when you press the submit button or it is activated remotely
 	 */
 	private void submitButtonPressed(JPanel panel, int userID) {
-		if (submitButton.getText().equals("Log Out"))
+		if (loggedInAs != 0)
 		{
+			System.out.println("pressin log out");
 			idField.setVisible(true); 
 			lblEnterUserId.setVisible(true);
 			setTitle(header);
+			loggedInAs = 0;
 			submitButton.setText("Log In");	
+			try {
+				bookshelfPanel = new Bookshelf();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		else
 		{
@@ -373,15 +392,35 @@ public class LibWindow extends JFrame {
 				rs.next();
 				JOptionPane.showMessageDialog(null, "Signed in as: " + rs.getString(2));
 				loggedInAs = rs.getInt(1);
-
+				System.out.println("user: " + loggedInAs);
 				setTitle(header + " - Welcome " + rs.getString(2) + "!");
 				idField.setVisible(false); 
 				idField.setText("");
 				submitButton.setText("Log Out");
 				lblEnterUserId.setVisible(false);
+				
 			} catch (SQLException e) {
 				JOptionPane.showMessageDialog(null, "Invalid Card Number! Please try again.");
+				return;
 			}
+			
+			//populate bookshelf with user's books
+			
+			rs = DBManager.queryData("Books", "Title", "PatronID = " + userID, 0, "Title","Author","Genre");
+			int count = 0;
+			try {
+				rs.next();
+				while (rs.next())
+				{
+					count++;
+					bookshelfPanel.add(rs.getString(1));
+				}
+				if (count > 1)
+					bookshelfPanel.drawBooks();
+			} catch (Exception e) {
+				JOptionPane.showMessageDialog(null, "Error retrieving books! Please try again.");
+			}
+			
 		}
 	}	
 	private void sortButton(String sortBy) {

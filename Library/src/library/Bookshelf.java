@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import java.awt.Font;
-import java.awt.GraphicsEnvironment;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -23,7 +22,6 @@ public class Bookshelf extends JPanel{
 
 	private JPanel frame;
 	private static String[] bookArr;
-	private Random rand = new Random();
 	private JPanel cover;
 	private int numBooks;
 	private int tail;
@@ -32,6 +30,7 @@ public class Bookshelf extends JPanel{
 	private JTextPane authorPane;
 	private JTextPane last;
 	private SpringLayout springLayout;
+	private BookStack bStack = new BookStack();
 	
 	/**
 	 * Launch the application.
@@ -56,8 +55,9 @@ public class Bookshelf extends JPanel{
 	}
 	/**
 	 * Create the application.
+	 * @throws Exception 
 	 */
-	public Bookshelf(String...args) {
+	public Bookshelf(String...args) throws Exception {
 		if (!isEmpty())
 		{
 			addToBookArray(args);
@@ -67,27 +67,13 @@ public class Bookshelf extends JPanel{
 
 	}
 
-	private void addToBookArray(String... args) {
-		System.out.println("bookarray called");
-		ArrayList<String> currentList = new ArrayList<>();
-		
-		// add current books, if any
-		if (!isEmpty())	
+	private void addToBookArray(String... args) throws Exception {
+		for (String item : args)
 		{
-			for (String book : bookArr)
-			{
-				currentList.add(book);
-			}	
+			System.out.println("item: " + item);
+			bStack.push(item);
 		}
-		
-		// add new books
-		for (String book : args)
-		{
-			currentList.add(book);
-		}
-		
-		bookArr = currentList.toArray(new String[currentList.size()]);
-		System.out.println("ba: " + Arrays.toString(bookArr));
+		bookArr = bStack.toArray();
 	}
 
 	/**
@@ -132,19 +118,20 @@ public class Bookshelf extends JPanel{
 		cover.add(authorPane);
 		
 	}
-	public void add(String title) {
+	public void add(String title) throws Exception {
 		addToBookArray(title); // inefficient i guess but no time
 	}
 	public void drawBooks() {
 
 		
 		last = null; // we use this in the loop later
-		ArrayList<ArrayList<String>> Books = DBManager.queryDataConsole("Books", "Title","Title IN (" + sqlStringFormatter(bookArr) + ")", 0,"Title", "Author","Genre");
+		ArrayList<ArrayList<String>> Books = DBManager.queryDataConsole("Books", "Title","Title IN (" + sqlStringFormatter(bookArr) + ")", 0,"Title", "Author","Genre","Color","Font","Width","descriptor");
+		
 		numBooks = Books.size();
 		
 		System.out.println(numBooks);
 		
-		int maxSize = 10;
+		int maxSize = 15;
 		if (numBooks > maxSize)
 			tail = maxSize;
 		else
@@ -157,10 +144,8 @@ public class Bookshelf extends JPanel{
 		{
 
 			JTextPane currentBook = new JTextPane();         
-			// a random descriptor that will show up on the cover
-			String descriptor = Phrase.getRandomFromArray(new String[] {"Bestseller","Bocument","E-book","Exposition","Song","Novel","Tale","Story"});
-			currentBook.putClientProperty( "descriptor", descriptor ); 
-			// store the current i in the object so we can access it from the listener
+		
+			// store the current i (location in the list) in the object so we can access it from the listener
 			currentBook.putClientProperty( "bookIndex", i ); 
 
 			// add the current title as text
@@ -168,55 +153,36 @@ public class Bookshelf extends JPanel{
 
 			frame.add(currentBook);		
 
-			Color coverColor = new Color(rand.nextInt(2000 % 255),rand.nextInt(1000 % 255),rand.nextInt(1000 % 255));
-			
-			currentBook.putClientProperty("coverColor", coverColor); 
-			makeBookBorder(currentBook, coverColor);	
-			
-			currentBook.putClientProperty("textColor", getComplementaryColor(coverColor));
-	
-		
-			// the width of the book
-			currentBook.putClientProperty("width", 150 + rand.nextInt(55));
 			// set the background and text of the label to our new colors
-			currentBook.setBackground((Color) currentBook.getClientProperty("coverColor"));
-			currentBook.setForeground((Color) currentBook.getClientProperty("textColor"));
+			String[] rawColor = Books.get(i).get(3).split(",");
+			currentBook.setBackground(new Color(
+											Integer.valueOf(rawColor[0]),  //R
+											Integer.valueOf(rawColor[1]),  //G
+											Integer.valueOf(rawColor[2]))  //B
+										 );
+			currentBook.setForeground(getComplementaryColor(currentBook.getBackground()));
+			
+			// add booky border
+			makeBookBorder(currentBook, currentBook.getBackground());
+			
 			currentBook.setOpaque(true);	
 			currentBook.setVisible(true);
-			System.out.println(currentBook.getPreferredSize().toString());
-			setRandomFont(currentBook);
+			currentBook.putClientProperty("font", new Font(Books.get(i).get(4),Font.BOLD,14));
+			//setRandomFont(currentBook);
 			
-			//split text into two lines if needed
-			String[] sp = splitAlign(currentBook.getText());
-			String result ="";
-			for (String s : sp)
-			{
-
-				 result +=  s.trim() + "\n";
-				
-			}
-			result = result.substring(0, result.length()-1); // trim off last newline
-			currentBook.setText(result);
-
-
-	
-			springLayout.putConstraint(SpringLayout.EAST, currentBook, (int) currentBook.getClientProperty("width"), SpringLayout.WEST, frame.getParent());
+			springLayout.putConstraint(SpringLayout.EAST, currentBook, Integer.valueOf(Books.get(i).get(5)), SpringLayout.WEST, frame.getParent());
 			springLayout.putConstraint(SpringLayout.WEST, currentBook, 12, SpringLayout.WEST, frame.getParent());
-			springLayout.putConstraint(SpringLayout.SOUTH, currentBook, 55, SpringLayout.NORTH, currentBook);
 			
 			// last not initizlied yet so we use the top of the frames
 			if (i == head)
-				springLayout.putConstraint(SpringLayout.NORTH, currentBook, 8, SpringLayout.NORTH,frame.getParent());	
+				springLayout.putConstraint(SpringLayout.SOUTH, currentBook, 0, SpringLayout.SOUTH,frame);	
 			else 
-				springLayout.putConstraint(SpringLayout.NORTH, currentBook, 8, SpringLayout.SOUTH,last); // after the 1st loop last will be initialized
-			System.out.println("last just b4 assignment : " + last);
+				springLayout.putConstraint(SpringLayout.SOUTH, currentBook, -2, SpringLayout.NORTH,last); // after the 1st loop last will be initialized
+
 			last = currentBook; // set this variable at the end of the loop so we can use it next time through the loop
 			
-			
-			System.out.println(currentBook);
+		
 			// LISTENERS
-			// i'm not sure where these should be in the code
-			// we could do this on click instead if we want
 			
 			currentBook.addMouseListener(new MouseAdapter() {
 				
@@ -224,17 +190,28 @@ public class Bookshelf extends JPanel{
 				@Override
 				public void mouseEntered(MouseEvent arg0) {
 					
-					cover.setBackground((Color) currentBook.getClientProperty("coverColor"));
-					String descriptor = (String) currentBook.getClientProperty("descriptor");
-					String title = Books.get((int) currentBook.getClientProperty("bookIndex")).get(0);
-					String genre = Books.get((int) currentBook.getClientProperty("bookIndex")).get(2);
+					int index = (int) currentBook.getClientProperty("bookIndex");
+					//parse color info
+					String[] rawColor = Books.get((int) currentBook.getClientProperty("bookIndex")).get(3).split(",");
+					cover.setBackground(new Color(
+													Integer.valueOf(rawColor[0]),  //R
+													Integer.valueOf(rawColor[1]),  //G
+													Integer.valueOf(rawColor[2]))  //B
+												 );
+					
+					String descriptor = Books.get(index).get(6);
+					String title = Books.get(index).get(0);
+					String genre = Books.get(index).get(2);
+					
+					// construct author / genre / descriptor string
+					// i.e. "a sci fi novel by Joe Schmoe"
 					String article = "";
 					if (Phrase.startsWithVowel(genre))
 						article = "An ";
 					else
 						article = "A ";
 					String author = article + genre + " " + descriptor + " by " +
-							Books.get((int) currentBook.getClientProperty("bookIndex")).get(1);
+							Books.get(index).get(1);
 					updateCoverElement(Books, titlePane, currentBook, title,19);
 					updateCoverElement(Books, authorPane, currentBook, author,16);
 					
@@ -252,7 +229,6 @@ public class Bookshelf extends JPanel{
 					titlePane.setForeground((Color) currentBook.getClientProperty("textColor"));
 					titlePane.setFont((Font) currentBook.getClientProperty("font"));	
 					titlePane.setFont( new Font(titlePane.getFont().getFontName(),Font.BOLD,size));
-
 					String[] sp = splitAlign(text);
 					String result ="";
 					for (String s : sp)
@@ -263,7 +239,7 @@ public class Bookshelf extends JPanel{
 						}
 					}
 					result = result.substring(0, result.length()-1);
-					titlePane.setText(result);
+					titlePane.setText(text); //setText(result);   // bypassed for now
 				}
 			});
 		} // END LOOP that populates books
@@ -324,35 +300,22 @@ public class Bookshelf extends JPanel{
 			return Color.BLACK;//tColor.brighter();
 	}
 
-	/**
-	 * Give a JTextPane a random font from the system
-	 * @param currentBook
-	 */
-	private void setRandomFont(JTextPane currentBook) {
-		// randomize fonts - TODO needs work for readability
-		String[] possibleFonts = GraphicsEnvironment.getLocalGraphicsEnvironment().
-				getAvailableFontFamilyNames() ;
-
-		currentBook.putClientProperty("font", new Font(possibleFonts[rand.nextInt(possibleFonts.length)], Font.BOLD, 15)); //(rand.nextInt(3)+12)));
-		currentBook.setFont((Font) currentBook.getClientProperty("font"));
-	}
-
 	/*
 	 * add a book border to a jTextPane
 	 */
 	public static void makeBookBorder(JTextPane currentBook, Color color) {
 		currentBook.setBorder(BorderFactory.createCompoundBorder(
 								BorderFactory.createBevelBorder(BevelBorder.RAISED, 
-										(color).darker(),
-										color,
 										(color).brighter(),
-										Color.orange
+										Color.orange,
+										(color).darker(),
+										color
 										), 
 								BorderFactory.createBevelBorder(BevelBorder.RAISED, 
-										color,
-										color,
 										(color).brighter(),
-										Color.orange
+										Color.orange,
+										(color).darker(),
+										color
 										)
 								)
 					 );
@@ -374,7 +337,7 @@ public class Bookshelf extends JPanel{
 	 * splits text into two lines if it is too long
 	 */
 	private String[] splitAlign(String text) {
-		if (text.length() > 15)
+		if (text.length() > 30)
 		{
 			int splitPoint = text.indexOf(" ", text.length( ) / 2) + 1; //find the index of the first space after the halfway point.
 			// return -1 if no match but we added 1

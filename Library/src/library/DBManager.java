@@ -1,4 +1,6 @@
 package library;
+import java.awt.Color;
+import java.awt.GraphicsEnvironment;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -6,6 +8,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Vector;
 
 import javax.swing.table.DefaultTableModel;
@@ -33,11 +36,13 @@ public class DBManager { // TODO change to DBmanager
 			statement.execute("CREATE TABLE Books("
 					+ "BookID int,"  // primary key
 					+ "Title varchar(256)" + ","
-					+ "Author varchar(124)"  + ","
+					+ "Author varchar(128)"  + ","
 					+ "Genre varchar(64)"  + ","
-					+ "PatronID int"    // foreign key - Patrons table ID
-										// technically this should have the same
-										// column name as it does in that table
+					+ "PatronID int" + ","   // foreign key - Patrons table ID
+					+ "Color varchar(32)" + ","
+					+ "Font varchar(64)" + ","
+					+ "Width int" + ","
+					+ "descriptor varchar (32)"
 					+ ")");
 			// pretty sure we can actually chain these but the syntax gets annoying
 			// TODO - look into it
@@ -103,8 +108,31 @@ public class DBManager { // TODO change to DBmanager
 				{
 					Book b = new Book();
 					int newID = counter + total;
-					statement.execute("INSERT INTO Books VALUES" // TODO move this to book class
-							+ "("+ newID + ",'" + b.getTitle() + "','" + b.getAuthor() + "','" + b.getGenre() + "', 0)");
+					// generate some characteristics for displaying on the bookshelf
+					Random rand = new Random();
+					String coverColor = rand.nextInt(2000 % 255)+","+rand.nextInt(1000 % 255)+","+rand.nextInt(1000 % 255);
+					int width = 250 + rand.nextInt(55);
+					
+					String[] possibleFonts = GraphicsEnvironment.getLocalGraphicsEnvironment().
+							getAvailableFontFamilyNames() ;
+					String font = possibleFonts[rand.nextInt(possibleFonts.length)];
+					String descriptor = Phrase.getRandomFromArray(new String[] {"Bestseller","Bocument","E-book","Exposition","Song","Novel","Tale","Story"});
+					String st = ("INSERT INTO Books VALUES" // TODO move this to book class
+							+ "("+ newID + ",'" + b.getTitle() + "','" 
+							+ b.getAuthor() + "' , '" 
+							+ b.getGenre() + "' , 0 , " 
+							+ "'" 
+							+ coverColor 
+							+ "','" 
+							+ font
+							+ "',"
+							+ width 
+							+ ",'" 
+							+ descriptor
+							+ "')"
+							);
+					System.out.println(st);
+					statement.execute(st);
 					counter++;
 				}
 			
