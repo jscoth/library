@@ -2,9 +2,14 @@ package library;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Vector;
+
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableModel;
 
 public class DBManager { // TODO change to DBmanager
 	
@@ -16,7 +21,6 @@ public class DBManager { // TODO change to DBmanager
 		addRandomBooks(12);
 		addRandomBooks(15);
 		addRandomPatrons(35);
-		ResultSet answer = queryData("Books","BookID","Title");
 
 		
 	}
@@ -31,10 +35,9 @@ public class DBManager { // TODO change to DBmanager
 					+ "Title varchar(256)" + ","
 					+ "Author varchar(124)"  + ","
 					+ "Genre varchar(64)"  + ","
-					+ "CheckedOut date"  + ","  // foreign key - Patrons table ID
+					+ "PatronID int"    // foreign key - Patrons table ID
 										// technically this should have the same
 										// column name as it does in that table
-					+ "DueDate date" 
 					+ ")");
 			// pretty sure we can actually chain these but the syntax gets annoying
 			// TODO - look into it
@@ -101,7 +104,7 @@ public class DBManager { // TODO change to DBmanager
 					Book b = new Book();
 					int newID = counter + total;
 					statement.execute("INSERT INTO Books VALUES" // TODO move this to book class
-							+ "("+ newID + ",'" + b.getTitle() + "','" + b.getAuthor() + "','" + b.getGenre() + "', '2000-01-01', '2000-01-01')");
+							+ "("+ newID + ",'" + b.getTitle() + "','" + b.getAuthor() + "','" + b.getGenre() + "', 0)");
 					counter++;
 				}
 			
@@ -159,20 +162,7 @@ public class DBManager { // TODO change to DBmanager
 	{
 		
 	}
-	public static void checkOut()
-	{
-		try 
-		{
-			Connection connection = DriverManager.getConnection(connectionUrl);
-			Statement statement = connection.createStatement();
-			statement.execute("UPDATE Books SET CheckedOut");
 
-		} 
-		catch (SQLException e) 
-		{
-			e.printStackTrace();
-		}				
-	}
 	/*
 	 * returns an arraylist as follows:
 	 * the first element is a list of the columns queried
@@ -254,7 +244,9 @@ public class DBManager { // TODO change to DBmanager
 				}
 				// this will take out the last comma and space:
 				columnsSB.delete(columnsSB.length()-2, columnsSB.length()); 
-				
+				System.out.println(("SELECT " + columnsSB.toString() + " FROM " + table + 
+						" WHERE " + whereCondition +
+						" ORDER BY " + orderBy));
 				ResultSet resultset = statement.executeQuery("SELECT " + columnsSB.toString() + " FROM " + table + 
 						" WHERE " + whereCondition +
 						" ORDER BY " + orderBy);
@@ -367,5 +359,69 @@ public static void addBook(String title, String author, String genre) {
 		
 	}
 	
+
+	public static void removeByID(String table, int...rows)  {
+		
+		try {	
+				Connection connection = DriverManager.getConnection(connectionUrl);
+				Statement statement = connection.createStatement();
+				
+				// build a properly formatted string out of the column arguments:
+				StringBuilder rowSB = new StringBuilder();
+				for (int es : rows)
+				{
+					rowSB.append(es + ", ");
+				}
+				// this will take out the last comma and space:
+				rowSB.delete(rowSB.length()-2, rowSB.length());
+				
+				String whereCondition = (table.equalsIgnoreCase("books") ? "BookID" : "PatronID");
+				
+				ResultSet resultset = statement.executeQuery("DELETE FROM " + table + 
+						" WHERE " + whereCondition);
+			} 
+		catch (SQLException e) 
+		{
+			e.printStackTrace();
+		}
+	}
 	
+	/**
+	 * ResultSetToTableModel will take a result set and return a TableModel for a Jtable to 
+	 * be formatted to. Very simple yet robust. Lifted from rs2xml.jar; package net.proteanit.sql;
+	 * DbUtils class. Our implementation will allow the whole rs2xml to not be referenced. 
+	 * @param rs
+	 * @return
+	 */
+	public static TableModel resultSetToTableModel(ResultSet rs) {
+		try {
+		    ResultSetMetaData metaData = rs.getMetaData();
+		    int numberOfColumns = metaData.getColumnCount();
+		    Vector<String> columnNames = new Vector<String>();
+	
+		    // Get the column names
+		    for (int column = 0; column < numberOfColumns; column++) {
+			columnNames.addElement(metaData.getColumnLabel(column + 1));
+		    }
+	
+		    // Get all rows.
+		    Vector<Vector<Object>> rows = new Vector<Vector<Object>>();
+	
+		    while (rs.next()) {
+			Vector<Object> newRow = new Vector<Object>();
+	
+			for (int i = 1; i <= numberOfColumns; i++) {
+			    newRow.addElement(rs.getObject(i));
+			}
+	
+			rows.addElement(newRow);
+		    }
+	
+		    return new DefaultTableModel(rows, columnNames);
+		} catch (Exception e) {
+		    e.printStackTrace();
+	
+		    return null;
+		}
+	    }
 }

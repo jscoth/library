@@ -1,47 +1,46 @@
 package library;
 
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.EventQueue;
 
 import javax.swing.BorderFactory;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.SpringLayout;
-import javax.swing.SwingConstants;
 import javax.swing.border.BevelBorder;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import javax.swing.JPanel;
 import javax.swing.JTextPane;
-import javax.swing.Spring;
-
-import java.awt.GridLayout;
-import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-public class Bookshelf {
+public class Bookshelf extends JPanel{
 
-	private JFrame frame;
+	private JPanel frame;
 	private static String[] bookArr;
 	private Random rand = new Random();
+	private JPanel cover;
+	private int numBooks;
+	private int tail;
+	private int head;
+	private JTextPane titlePane;
+	private JTextPane authorPane;
+	private JTextPane last;
+	private SpringLayout springLayout;
+	
 	/**
 	 * Launch the application.
 	 */
 	public static void Launch(String[] args) {
-		bookArr = args;
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					Bookshelf window = new Bookshelf();
+					Bookshelf window = new Bookshelf(bookArr);
 					window.frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -50,42 +49,81 @@ public class Bookshelf {
 		});
 	}
 
+	public Boolean isEmpty() {
+		if (bookArr == null)
+				return true;
+		return false;
+	}
 	/**
 	 * Create the application.
 	 */
-	public Bookshelf() {
+	public Bookshelf(String...args) {
+		if (!isEmpty())
+		{
+			addToBookArray(args);
+		}
+
 		initialize();
 
+	}
+
+	private void addToBookArray(String... args) {
+		System.out.println("bookarray called");
+		ArrayList<String> currentList = new ArrayList<>();
+		
+		// add current books, if any
+		if (!isEmpty())	
+		{
+			for (String book : bookArr)
+			{
+				currentList.add(book);
+			}	
+		}
+		
+		// add new books
+		for (String book : args)
+		{
+			currentList.add(book);
+		}
+		
+		bookArr = currentList.toArray(new String[currentList.size()]);
+		System.out.println("ba: " + Arrays.toString(bookArr));
 	}
 
 	/**
 	 * Initialize the contents of the frame.
 	 */
 	private void initialize() {
-		frame = new JFrame();
-		frame.setBounds(100, 100, 700, 500);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		SpringLayout springLayout = new SpringLayout();
-		frame.getContentPane().setLayout(springLayout);
 
-		System.out.println("Title IN (" + sqlStringFormatter(bookArr) + ")");
-		ArrayList<ArrayList<String>> Books = DBManager.queryDataConsole("Books", "Title","Title IN (" + sqlStringFormatter(bookArr) + ")", 0,"Title", "Author","Genre");
-		
-		int numBooks = Books.size();
-		int head = 0; // used for scrolling -TODO
-		int tail = bookArr.length; // need this to scroll - TODO
+		frame = this;
+		frame.setToolTipText("\"bookshelf\"");
+		frame.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED, 
+				Color.black,
+				Color.black,
+				(Color.black).brighter(),
+				Color.blue
+				));
+		frame.setVisible(true);
+		frame.setOpaque(true);
+	    springLayout = new SpringLayout();
+		frame.setLayout(springLayout);
+		frame.setBackground(new Color(205,133,65));
 
-		System.out.println(tail);
+
+
+
+		head = 0; 
+		tail = 0; 
+
 		// COVER
 		// this panel represents the cover of the book the user has moused over
-		JPanel cover = createCover(springLayout);
-		frame.getContentPane().add(cover);
-		
-
+		cover = createCover(springLayout);
+		//frame.add(cover);
 		
 		// title on book cover
-		JTextPane titlePane = new JTextPane();
-		JTextPane authorPane = new JTextPane();
+		titlePane = new JTextPane();
+		// author on book cover
+		authorPane = new JTextPane();
 		
 		configureCoverTextPane(springLayout, cover, titlePane);
 		configureCoverTextPane(springLayout, cover, authorPane);
@@ -93,35 +131,59 @@ public class Bookshelf {
 		cover.add(titlePane);
 		cover.add(authorPane);
 		
+	}
+	public void add(String title) {
+		addToBookArray(title); // inefficient i guess but no time
+	}
+	public void drawBooks() {
 
-
-
-		JTextPane last = null; // we use this in the loop later
+		
+		last = null; // we use this in the loop later
+		ArrayList<ArrayList<String>> Books = DBManager.queryDataConsole("Books", "Title","Title IN (" + sqlStringFormatter(bookArr) + ")", 0,"Title", "Author","Genre");
+		numBooks = Books.size();
+		
+		System.out.println(numBooks);
+		
+		int maxSize = 10;
+		if (numBooks > maxSize)
+			tail = maxSize;
+		else
+			tail = numBooks;
+		
+		frame.removeAll();  // to fix the color/ size switching when you add new books we need to replace all the "put client property" assignments
+							// with entries in a has table stored outside those objects (with the key as the index location in the "stack")
+							//since now that  they are destroyed in this step we can no longer access that data. 
 		for (int i = head; i < tail; i++)  
 		{
 
-			
 			JTextPane currentBook = new JTextPane();         
 			// a random descriptor that will show up on the cover
 			String descriptor = Phrase.getRandomFromArray(new String[] {"Bestseller","Bocument","E-book","Exposition","Song","Novel","Tale","Story"});
 			currentBook.putClientProperty( "descriptor", descriptor ); 
 			// store the current i in the object so we can access it from the listener
 			currentBook.putClientProperty( "bookIndex", i ); 
+
 			// add the current title as text
 			currentBook.setText(Books.get(i).get(0));
 
-			frame.getContentPane().add(currentBook);				  	
+			frame.add(currentBook);		
+
 			Color coverColor = new Color(rand.nextInt(2000 % 255),rand.nextInt(1000 % 255),rand.nextInt(1000 % 255));
 			
 			currentBook.putClientProperty("coverColor", coverColor); 
 			makeBookBorder(currentBook, coverColor);	
 			
 			currentBook.putClientProperty("textColor", getComplementaryColor(coverColor));
-			
+	
+		
+			// the width of the book
+			currentBook.putClientProperty("width", 150 + rand.nextInt(55));
 			// set the background and text of the label to our new colors
 			currentBook.setBackground((Color) currentBook.getClientProperty("coverColor"));
 			currentBook.setForeground((Color) currentBook.getClientProperty("textColor"));
-			currentBook.setOpaque(true);								
+			currentBook.setOpaque(true);	
+			currentBook.setVisible(true);
+			System.out.println(currentBook.getPreferredSize().toString());
 			setRandomFont(currentBook);
 			
 			//split text into two lines if needed
@@ -138,18 +200,20 @@ public class Bookshelf {
 
 
 	
-			springLayout.putConstraint(SpringLayout.EAST, currentBook, -300 - rand.nextInt(60), SpringLayout.EAST, frame.getContentPane());
-			springLayout.putConstraint(SpringLayout.WEST, currentBook, 12, SpringLayout.WEST, frame.getContentPane());
+			springLayout.putConstraint(SpringLayout.EAST, currentBook, (int) currentBook.getClientProperty("width"), SpringLayout.WEST, frame.getParent());
+			springLayout.putConstraint(SpringLayout.WEST, currentBook, 12, SpringLayout.WEST, frame.getParent());
 			springLayout.putConstraint(SpringLayout.SOUTH, currentBook, 55, SpringLayout.NORTH, currentBook);
 			
-			// last not initizlied yet so we use the top of the frame
+			// last not initizlied yet so we use the top of the frames
 			if (i == head)
-				springLayout.putConstraint(SpringLayout.NORTH, currentBook, 8, SpringLayout.NORTH,frame.getContentPane());	
+				springLayout.putConstraint(SpringLayout.NORTH, currentBook, 8, SpringLayout.NORTH,frame.getParent());	
 			else 
 				springLayout.putConstraint(SpringLayout.NORTH, currentBook, 8, SpringLayout.SOUTH,last); // after the 1st loop last will be initialized
+			System.out.println("last just b4 assignment : " + last);
 			last = currentBook; // set this variable at the end of the loop so we can use it next time through the loop
 			
 			
+			System.out.println(currentBook);
 			// LISTENERS
 			// i'm not sure where these should be in the code
 			// we could do this on click instead if we want
@@ -203,7 +267,8 @@ public class Bookshelf {
 				}
 			});
 		} // END LOOP that populates books
-		
+		//frame.revalidate();
+		//frame.repaint();
 	}
 
 	private String sqlStringFormatter(String[] array) {
@@ -254,9 +319,9 @@ public class Bookshelf {
 
 
 		if (total > .5)
-			return tColor.darker(); 
+			return Color.WHITE; 
 		else
-			return tColor.brighter();
+			return Color.BLACK;//tColor.brighter();
 	}
 
 	/**
@@ -298,8 +363,8 @@ public class Bookshelf {
 		cover.setBorder(BorderFactory.createLineBorder(Color.black));
 		cover.setOpaque(true); 
 		cover.setBackground(Color.pink);	
-		springLayout.putConstraint(SpringLayout.EAST, cover, -40, SpringLayout.EAST, frame.getContentPane()); // the EAST edge of cover is -20 pixels from the EAST edge of the frame
-		springLayout.putConstraint(SpringLayout.NORTH,cover, 20, SpringLayout.NORTH, frame.getContentPane()); // likewise with north
+		springLayout.putConstraint(SpringLayout.EAST, cover, -40, SpringLayout.EAST, frame); // the EAST edge of cover is -20 pixels from the EAST edge of the frame
+		springLayout.putConstraint(SpringLayout.NORTH,cover, 20, SpringLayout.NORTH, frame); // likewise with north
 		springLayout.putConstraint(SpringLayout.SOUTH, cover, 325, SpringLayout.NORTH, cover); // the SOUTH edge of the cover is 300 pixels away from the NORTH edge of cover
 		springLayout.putConstraint(SpringLayout.WEST, cover, -225, SpringLayout.EAST, cover);  // etc
 		return cover;
